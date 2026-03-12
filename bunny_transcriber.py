@@ -27,7 +27,7 @@ except ImportError:
     sys.exit(1)
 
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject
-from PyQt6.QtGui import QFont, QIcon
+from PyQt6.QtGui import QFont, QIcon, QPixmap
 from PyQt6.QtWidgets import (
     QApplication,
     QFrame,
@@ -238,25 +238,22 @@ COLORS = {
     "recording_pulse": "#EF4444",
 }
 
-BUNNY_IDLE = r"""   /)  /)
-  ( ^.^ )
-  (")_(")"""
+# ── Bunny Image Paths ────────────────────────────────────────────────
+PICS_DIR = Path(__file__).parent / "pics"
 
-BUNNY_HAPPY = r"""   /)  /)
-  ( ^w^ )
-  (")_(")"""
+BUNNY_IMAGES = {
+    "idle": PICS_DIR / "basebun.png",
+    "listening": PICS_DIR / "speakbun.png",
+    "working": PICS_DIR / "workbub.png",
+    "happy": PICS_DIR / "winbun.png",
+    "chomp": PICS_DIR / "chompbun.png",
+    "error": PICS_DIR / "madbun.png",
+    "shock": PICS_DIR / "shockbun.png",
+    "sleepy": PICS_DIR / "sleepbun.png",
+    "yawn": PICS_DIR / "yawnbun.png",
+}
 
-BUNNY_LISTENING = r"""   /)  /)
-  ( o.o )
-  (")_(")"""
-
-BUNNY_WORKING = r"""   /)  /)
-  ( >.<)
-  (")_(")"""
-
-BUNNY_SLEEPY = r"""   /)  /)
-  ( -.- )
-  (")_(")"""
+BUNNY_IMG_HEIGHT = 170
 
 import random
 
@@ -283,8 +280,8 @@ class BunnyTranscriberWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Bunny Transcriber")
-        self.resize(550, 680)
-        self.setMinimumSize(450, 580)
+        self.resize(550, 780)
+        self.setMinimumSize(450, 680)
 
         self.transcriber = VoiceTranscriber()
         self.transcriber.signals.status_update.connect(self._on_status)
@@ -315,9 +312,9 @@ class BunnyTranscriberWindow(QMainWindow):
         header_layout.setContentsMargins(0, 0, 0, 0)
         header_layout.setSpacing(2)
 
-        self._bunny_label = QLabel(BUNNY_IDLE)
-        self._bunny_label.setFont(QFont("Courier", 16, QFont.Weight.Bold))
+        self._bunny_label = QLabel()
         self._bunny_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._bunny_label.setFixedHeight(BUNNY_IMG_HEIGHT + 10)
         header_layout.addWidget(self._bunny_label)
 
         title = QLabel("Bunny Transcriber")
@@ -561,6 +558,19 @@ class BunnyTranscriberWindow(QMainWindow):
             }}
         """)
 
+    # ── Bunny Image ────────────────────────────────────────────────────
+
+    def _set_bunny_image(self, state: str):
+        path = BUNNY_IMAGES.get(state, BUNNY_IMAGES["idle"])
+        pixmap = QPixmap(str(path))
+        if not pixmap.isNull():
+            scaled = pixmap.scaledToHeight(
+                BUNNY_IMG_HEIGHT, Qt.TransformationMode.SmoothTransformation
+            )
+            self._bunny_label.setPixmap(scaled)
+        else:
+            self._bunny_label.setText(f"[{state}]")
+
     # ── API Key ───────────────────────────────────────────────────────
 
     def _load_api_key(self):
@@ -600,7 +610,7 @@ class BunnyTranscriberWindow(QMainWindow):
         self.transcriber.start_recording()
 
     def _on_recording_start(self):
-        self._bunny_label.setText(BUNNY_LISTENING)
+        self._set_bunny_image("listening")
         self._record_btn.setText("Listening...")
         self._record_btn.setStyleSheet(
             f"background-color: {COLORS['recording']};"
@@ -614,7 +624,7 @@ class BunnyTranscriberWindow(QMainWindow):
         self._blink_timer.stop()
         self._record_btn.setText("Start Recording")
         self._record_btn.setStyleSheet("")  # Reset to theme default
-        self._bunny_label.setText(BUNNY_WORKING)
+        self._set_bunny_image("working")
 
     def _blink_record(self):
         self._recording_blink = not self._recording_blink
@@ -630,7 +640,7 @@ class BunnyTranscriberWindow(QMainWindow):
         self._status_label.setStyleSheet(f"color: {COLORS['text_light']};")
 
     def _on_transcription(self, text: str):
-        self._bunny_label.setText(BUNNY_HAPPY)
+        self._set_bunny_image("happy")
         msg = random.choice(SUCCESS_MESSAGES)
         self._message_label.setText(msg)
         self._status_label.setText("Copied to clipboard!")
@@ -643,14 +653,14 @@ class BunnyTranscriberWindow(QMainWindow):
         QTimer.singleShot(3000, self._set_idle)
 
     def _on_error(self, msg: str):
-        self._bunny_label.setText(BUNNY_SLEEPY)
+        self._set_bunny_image("error")
         self._message_label.setText("*sad bunny noises*")
         self._status_label.setText(msg)
         self._status_label.setStyleSheet(f"color: {COLORS['error_text']};")
         QTimer.singleShot(5000, self._set_idle)
 
     def _set_idle(self):
-        self._bunny_label.setText(BUNNY_IDLE)
+        self._set_bunny_image("idle")
         self._message_label.setText(random.choice(IDLE_MESSAGES))
         self._status_label.setText("")
 
